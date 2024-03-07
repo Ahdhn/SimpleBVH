@@ -1,5 +1,6 @@
 #include "BVH.hpp"
 #include <SimpleBVH/Morton.hpp>
+#include <Eigen/Dense>
 
 #include <iostream>
 
@@ -16,6 +17,56 @@ namespace {
         if (max2[0] < min1[0] || max2[1] < min1[1] || max2[2] < min1[2])
             return 0;
         return 1;
+    }
+    bool ray_box_intersection(
+        const Eigen::Vector3d& q1,
+        const Eigen::Vector3d& dirinv,
+        const std::array<Eigen::Vector3d, 2>& box,
+        double T = 1.0)
+    {
+        double tx1 = dirinv[0] * (box[0][0] - q1[0]);
+        double tx2 = dirinv[0] * (box[1][0] - q1[0]);
+
+        double ty1 = dirinv[1] * (box[0][1] - q1[1]);
+        double ty2 = dirinv[1] * (box[1][1] - q1[1]);
+
+        double tz1 = dirinv[2] * (box[0][2] - q1[2]);
+        double tz2 = dirinv[2] * (box[1][2] - q1[2]);
+
+        double tmin = std::max(
+            std::min(tx1, tx2),
+            std::max(std::min(ty1, ty2), std::min(tz1, tz2)));
+
+        double tmax = std::min(
+            std::max(tx1, tx2),
+            std::min(std::max(ty1, ty2), std::max(tz1, tz2)));
+
+        return (tmax >= 0.0) && (tmin <= tmax) && (tmin <= T);
+    }
+    bool ray_triangle_intersection(
+        const Eigen::Vector3d& O,
+        const Eigen::Vector3d& D,
+        const Eigen::Vector3d& A,
+        const Eigen::Vector3d& B,
+        const Eigen::Vector3d& C,
+        double& t,
+        double& u,
+        double& v,
+        Eigen::Vector3d& N)
+    {
+        Eigen::Vector3d E1(B - A);
+        Eigen::Vector3d E2(C - A);
+        N = E1.cross(E2);
+        double det = -D.dot(N);
+        double invdet = 1.0 / det;
+        Eigen::Vector3d AO = O - A;
+        Eigen::Vector3d DAO = AO.cross(D);
+        u = E2.dot(DAO) * invdet;
+        v = -E1.dot(DAO) * invdet;
+        t = AO.dot(N) * invdet;
+        return (
+            (fabs(det) >= 1e-20) && (t >= 0.0) && (u >= 0.0) && (v >= 0.0)
+            && ((u + v) <= 1.0));
     }
 } // namespace
 
@@ -200,5 +251,29 @@ bool BVH::box_intersects_box(
     const auto& bmax = boxlist[index][1];
 
     return box_box_intersection(bbd0, bbd1, bmin, bmax);
+}
+
+void BVH::ray_intersection_recursive(
+    const Ray& R,
+    const Eigen::Vector3d& dirinv,
+    double tmax,
+    size_t n,
+    size_t b,
+    size_t e,
+    std::vector<unsigned int>& list) const
+{
+    if (!ray_box_intersection(R.origin, dirinv, boxlist[n], tmax)) {
+        return;
+    }
+    if (b + 1 == e) {
+        list.push_back(b);
+        return;
+    }
+    size_t m = b + (e - b) / 2;
+    size_t childl = 2 * n;
+    size_t childr = 2 * n + 1;
+
+    ray_intersection_recursive(R, dirinv, tmax, childl, b, m, list);
+    ray_intersection_recursive(R, dirinv, tmax, childr, m, e, list);
 }
 } // namespace SimpleBVH
