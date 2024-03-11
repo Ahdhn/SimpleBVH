@@ -37,6 +37,32 @@ public:
         n_corners = -1;
     }
 
+    static bool ray_triangle_intersection(
+        const Eigen::Vector3d& O,
+        const Eigen::Vector3d& D,
+        const Eigen::Vector3d& A,
+        const Eigen::Vector3d& B,
+        const Eigen::Vector3d& C,
+        double& t,
+        double& u,
+        double& v,
+        Eigen::Vector3d& N)
+    {
+        Eigen::Vector3d E1(B - A);
+        Eigen::Vector3d E2(C - A);
+        N = E1.cross(E2);
+        double det = -D.dot(N);
+        double invdet = 1.0 / det;
+        Eigen::Vector3d AO = O - A;
+        Eigen::Vector3d DAO = AO.cross(D);
+        u = E2.dot(DAO) * invdet;
+        v = -E1.dot(DAO) * invdet;
+        t = AO.dot(N) * invdet;
+        return (
+            (fabs(det) >= 1e-20) && (t >= 0.0) && (u >= 0.0) && (v >= 0.0)
+            && ((u + v) <= 1.0));
+    }
+
     void intersect_3D_box(
         const Eigen::Vector3d& bbd0,
         const Eigen::Vector3d& bbd1,

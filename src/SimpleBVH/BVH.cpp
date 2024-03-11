@@ -42,32 +42,7 @@ namespace {
             std::min(std::max(ty1, ty2), std::max(tz1, tz2)));
 
         return (tmax >= 0.0) && (tmin <= tmax) && (tmin <= T);
-    }
-    bool ray_triangle_intersection(
-        const Eigen::Vector3d& O,
-        const Eigen::Vector3d& D,
-        const Eigen::Vector3d& A,
-        const Eigen::Vector3d& B,
-        const Eigen::Vector3d& C,
-        double& t,
-        double& u,
-        double& v,
-        Eigen::Vector3d& N)
-    {
-        Eigen::Vector3d E1(B - A);
-        Eigen::Vector3d E2(C - A);
-        N = E1.cross(E2);
-        double det = -D.dot(N);
-        double invdet = 1.0 / det;
-        Eigen::Vector3d AO = O - A;
-        Eigen::Vector3d DAO = AO.cross(D);
-        u = E2.dot(DAO) * invdet;
-        v = -E1.dot(DAO) * invdet;
-        t = AO.dot(N) * invdet;
-        return (
-            (fabs(det) >= 1e-20) && (t >= 0.0) && (u >= 0.0) && (v >= 0.0)
-            && ((u + v) <= 1.0));
-    }
+    }    
 } // namespace
 
 void BVH::init_boxes_recursive(
